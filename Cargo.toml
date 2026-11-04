@@ -1,0 +1,50 @@
+[package]
+name = "lora-rtl-rx"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.95"
+description = "LoRa PHY receiver for RTL-SDR dongles with a GUI and a TCP output for post processors"
+license = "GPL-3.0-or-later"
+default-run = "lora-rtl-rx"
+
+[lib]
+name = "lora_rtl_rx"
+path = "src/lib.rs"
+
+[[bin]]
+name = "lora-rtl-rx"
+path = "src/main.rs"
+
+[[bin]]
+name = "lora-decode"
+path = "src/bin/lora_decode.rs"
+
+[[bin]]
+name = "lora-gen"
+path = "src/bin/lora_gen.rs"
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+crossbeam-channel = "0.5"
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "persistence", "x11", "wayland"] }
+egui = "0.37"
+egui_extras = "0.37"
+libloading = "0.8"
+num-complex = "0.4"
+rand = "0.8"
+rand_distr = "0.4"
+rustfft = "6.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+debug = false
+
+# The DSP is far too slow without optimisation, so keep tests and debug runs usable.
+[profile.dev]
+opt-level = 2
+
+[profile.test]
+opt-level = 3

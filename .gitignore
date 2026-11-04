@@ -1,0 +1,28 @@
+# Added by Cargo
+# Contains the compiled binaries, libraries, and build artifacts
+/target/
+
+# Visual Studio Code configuration
+.vscode/
+
+# IntelliJ / RustRover configuration
+.idea/
+*.iml
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Backup and swap files
+*.bak
+*.swp
+
+# Environment variables (sensitive data)
+.env
+.env.*
+!.env.example
+
+# --- Optional / Case-by-Case Basis ---
+# Cargo.lock is usually tracked for binary applications, but ignored for libraries.
+# Uncomment the line below ONLY if you are building a library/crate.
+# Cargo.lock
