@@ -130,22 +130,26 @@ fn bandwidth_label(bw: u32) -> String {
     if bw >= 100_000 {
         format!("{} kHz", bw / 1000)
     } else {
-        format!("{:.1} kHz", lora_rtl_rx::lora::exact_bandwidth_hz(bw) / 1e3)
+        format!("{:.1} kHz", lora_rtl_rx::lora::exact_bandwidth_hz(bw) / 1000f64)
     }
 }
 
 /// Maps 0..=1 to a perceptually ordered dark-to-bright colour.
 fn heat(t: f32) -> Color32 {
-    const STOPS: [(f32, [f32; 3]); 6] = [
-        (0.00, [8.0, 10.0, 24.0]),
-        (0.25, [40.0, 30.0, 110.0]),
-        (0.50, [130.0, 40.0, 130.0]),
-        (0.72, [220.0, 80.0, 70.0]),
-        (0.90, [250.0, 170.0, 50.0]),
-        (1.00, [252.0, 250.0, 190.0]),
+    const STOPS: [(f32, [f32; 3]); 10] = [
+        (0.000, [8.0, 10.0, 24.0]),
+        (0.125, [24.0, 20.0, 67.0]),
+        (0.250, [40.0, 30.0, 110.0]),
+        (0.375, [85.0, 35.0, 120.0]),
+        (0.500, [130.0, 40.0, 130.0]),
+        (0.610, [175.0, 60.0, 100.0]),
+        (0.720, [220.0, 80.0, 70.0]),
+        (0.810, [235.0, 125.0, 60.0]),
+        (0.900, [250.0, 170.0, 50.0]),
+        (1.000, [252.0, 250.0, 190.0]),
     ];
     let t = t.clamp(0.0, 1.0);
-    let upper = STOPS.iter().position(|s| s.0 >= t).unwrap_or(5).max(1);
+    let upper = STOPS.iter().position(|s| s.0 >= t).unwrap_or(9).max(1);
     let (a, b) = (STOPS[upper - 1], STOPS[upper]);
     let f = (t - a.0) / (b.0 - a.0);
     let mix = |i: usize| (a.1[i] + (b.1[i] - a.1[i]) * f) as u8;
@@ -416,7 +420,7 @@ impl App {
             metric(ui, "HEADER LOST", s.decoder.header_errors.to_string(), Color32::LIGHT_GRAY);
             let running = self.engine.is_some();
             let level = if running { format!("{:.1} dBFS", s.channel_dbfs) } else { "-".into() };
-            metric(ui, "CHANNEL", level, Color32::LIGHT_GRAY);
+            metric(ui, "CH POWER", level, Color32::LIGHT_GRAY);
             let clip_colour = if s.clipped_percent > 0.1 { BAD } else { Color32::LIGHT_GRAY };
             metric(ui, "CLIPPING", format!("{:.2} %", s.clipped_percent), clip_colour);
             let drop_colour = if s.dropped_samples > 0 { BAD } else { Color32::LIGHT_GRAY };
