@@ -114,6 +114,29 @@ Little endian, one record per frame:
 | 24 | 2 | Payload length (`u16`) |
 | 26 | n | Payload |
 
+## Analysing LoRaWAN in Wireshark
+
+`examples/lorawan_to_pcap.py` connects to the socket (JSON lines format) and turns
+each frame into a pcap record with a LoRaTap header. Wireshark's LoRaTap
+dissector then hands frames with sync word 0x34 to its LoRaWAN dissector.
+
+```sh
+python3 examples/lorawan_to_pcap.py | wireshark -k -i -        # live
+python3 examples/lorawan_to_pcap.py -w lorawan.pcap            # to a file
+lora-decode capture.cu8 --sync 0x34 --offset 200000 | python3 examples/lorawan_to_pcap.py --stdin -w out.pcap
+```
+
+Set the sync word to 34 in the receiver. Without keys Wireshark shows the
+headers: message type, device address, frame counter and port. To decrypt
+payloads and check MICs, enter keys under Preferences, Protocols, LoRaWAN:
+*Session keys* (device address, NwkSKey, AppSKey) for data frames and *Root keys*
+(DevEUI, AppKey) for joins. LoRaTap's RSSI fields show -139 dBm because the
+receiver has no calibrated RSSI to give; SNR is filled in.
+
+Tested with Wireshark 4.2: uplinks and join requests built with known keys went
+through `lora-gen`, `lora-decode` and the bridge, and Wireshark decrypted them and
+reported their MICs as correct.
+
 ## Command line tools
 
 `lora-decode` applies the same receive chain to a recording and prints JSON lines:
@@ -123,7 +146,8 @@ rtl_sdr -f 914800000 -s 1000000 -g 40 capture.cu8
 cargo run --release --bin lora-decode -- capture.cu8 --offset 200000 --sf 7 --stats
 ```
 
-`lora-gen` writes a test recording with noise and a crystal error. Run either with
+`lora-gen` writes a test recording with noise and a crystal error. `--hex` sends
+exact payload bytes, such as a LoRaWAN frame. Run either with
 `--help` for the options. The GUI replays cu8, cs8, cs16 and cf32 files.
 
 ## How it works

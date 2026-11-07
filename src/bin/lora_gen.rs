@@ -14,6 +14,7 @@ usage: lora-gen OUT.cu8 [options]     (8 bit unsigned IQ, as rtl_sdr records)
 
   --frames N --gap SECONDS     frames and the silence around them (5, 0.2)
   --text STRING                payload (a counter is appended)
+  --hex HEX                    payload bytes in hex, sent unchanged every frame
   --rate HZ --offset HZ        sample rate and channel offset (1000000, 200000)
   --sf N --bw HZ --cr N        spreading factor, bandwidth, coding rate 1..4
   --sync 0xNN                  sync word
@@ -69,6 +70,20 @@ fn run() -> Result<(), String> {
     };
     p.validate()?;
     let text = options.get("text").cloned().unwrap_or_else(|| "Hello from lora-gen".into());
+    let fixed = match options.get("hex") {
+        Some(hex) => {
+            let clean: String = hex.chars().filter(|c| !c.is_whitespace()).collect();
+            if clean.is_empty() || clean.len() % 2 != 0 || clean.len() > 510 {
+                return Err("--hex needs 1 to 255 bytes as an even number of hex digits".into());
+            }
+            let bytes = (0..clean.len() / 2)
+                .map(|i| u8::from_str_radix(&clean[2 * i..2 * i + 2], 16))
+                .collect::<Result<Vec<u8>, _>>()
+                .map_err(|_| format!("--hex: cannot read {hex}"))?;
+            Some(bytes)
+        }
+        None => None,
+    };
     let impairments = TxImpairments { cfo_hz: ppm * freq * 1e-6, sfo_ppm: ppm, drift_hz_per_s: 0.0 };
 
     let amplitude = 0.1f32;
@@ -93,8 +108,11 @@ fn run() -> Result<(), String> {
     let silence = vec![Complex32::default(); gap];
     write(&silence, 0.0, &mut out, &mut rng);
     for i in 1..=frames {
-        let payload = format!("{text} #{i}");
-        let signal = modulate(&p, payload.as_bytes(), p.cr, true, rate, impairments);
+        let payload = match &fixed {
+            Some(bytes) => bytes.clone(),
+            None => format!("{text} #{i}").into_bytes(),
+        };
+        let signal = modulate(&p, &payload, p.cr, true, rate, impairments);
         write(&signal, amplitude, &mut out, &mut rng);
         write(&silence, 0.0, &mut out, &mut rng);
     }
