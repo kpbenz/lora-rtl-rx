@@ -1,15 +1,20 @@
 //! The main window.
 
-use egui::{Align, Color32, ColorImage, Layout, RichText, Sense, Stroke, TextureHandle, TextureOptions};
+use egui::{
+    Align, Color32, ColorImage, Layout, RichText, Sense, Stroke, TextureHandle, TextureOptions,
+};
 use egui_extras::{Column, TableBuilder};
 use lora_rtl_rx::dsp::ChannelFilter;
 use lora_rtl_rx::engine::{
-    Command, Engine, EngineConfig, EngineEvent, EngineStats, FrameRecord, SharedSocket, SourceConfig, SPECTRUM_SIZE,
+    Command, Engine, EngineConfig, EngineEvent, EngineStats, FrameRecord, SharedSocket,
+    SourceConfig, SPECTRUM_SIZE,
 };
 use lora_rtl_rx::lora::{Ldro, LoraParams, BANDWIDTHS_HZ};
 use lora_rtl_rx::socket::{hex, OutputFormat, SocketServer, SocketSettings};
 use lora_rtl_rx::source::rtlsdr::list_devices;
-use lora_rtl_rx::source::{DeviceInfo, FileSettings, IqFormat, RadioSettings, SimSettings, SourceKind};
+use lora_rtl_rx::source::{
+    DeviceInfo, FileSettings, IqFormat, RadioSettings, SimSettings, SourceKind,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -20,7 +25,8 @@ const MAX_FRAMES: usize = 5000;
 const MAX_LOG: usize = 500;
 const WATERFALL_ROWS: usize = 240;
 const SAMPLE_RATES: [u32; 9] = [
-    1_000_000, 1_024_000, 1_200_000, 1_400_000, 1_800_000, 2_000_000, 2_048_000, 2_400_000, 2_560_000,
+    1_000_000, 1_024_000, 1_200_000, 1_400_000, 1_800_000, 2_000_000, 2_048_000, 2_400_000,
+    2_560_000,
 ];
 
 const OK: Color32 = Color32::from_rgb(92, 200, 140);
@@ -113,14 +119,19 @@ impl Settings {
         let bw = self.lora.bw();
         if self.source == SourceKind::RtlSdr {
             if self.offset_khz.abs() * 1e3 < bw / 2.0 + 10e3 {
-                return Some("The channel overlaps the dongle's DC spike. Increase the tuning offset.".into());
+                return Some(
+                    "The channel overlaps the dongle's DC spike. Increase the tuning offset."
+                        .into(),
+                );
             }
             if self.radio.sample_rate > 2_400_000 {
                 return Some("Rates above 2.4 MS/s often lose samples on RTL-SDR dongles.".into());
             }
         }
         if rate / bw < 3.999 {
-            return Some("Sensitivity improves with a sample rate of at least 4 times the bandwidth.".into());
+            return Some(
+                "Sensitivity improves with a sample rate of at least 4 times the bandwidth.".into(),
+            );
         }
         None
     }
@@ -130,7 +141,10 @@ fn bandwidth_label(bw: u32) -> String {
     if bw >= 100_000 {
         format!("{} kHz", bw / 1000)
     } else {
-        format!("{:.1} kHz", lora_rtl_rx::lora::exact_bandwidth_hz(bw) / 1000f64)
+        format!(
+            "{:.1} kHz",
+            lora_rtl_rx::lora::exact_bandwidth_hz(bw) / 1000f64
+        )
     }
 }
 
@@ -175,7 +189,8 @@ impl Waterfall {
 
     /// Scrolls down and writes the newest line at the top.
     fn add_line(&mut self, line: &[f32], floor: f32, top: f32) {
-        self.pixels.copy_within(0..SPECTRUM_SIZE * (WATERFALL_ROWS - 1), SPECTRUM_SIZE);
+        self.pixels
+            .copy_within(0..SPECTRUM_SIZE * (WATERFALL_ROWS - 1), SPECTRUM_SIZE);
         let scale = 255.0 / (top - floor).max(1.0);
         for (pixel, &db) in self.pixels[..SPECTRUM_SIZE].iter_mut().zip(line) {
             *pixel = self.lut[((db - floor) * scale).clamp(0.0, 255.0) as usize];
@@ -184,9 +199,11 @@ impl Waterfall {
     }
 
     fn texture(&mut self, ctx: &egui::Context) -> &TextureHandle {
-        let image = |pixels: &[Color32]| ColorImage::new([SPECTRUM_SIZE, WATERFALL_ROWS], pixels.to_vec());
+        let image =
+            |pixels: &[Color32]| ColorImage::new([SPECTRUM_SIZE, WATERFALL_ROWS], pixels.to_vec());
         if self.texture.is_none() {
-            self.texture = Some(ctx.load_texture("waterfall", image(&self.pixels), TextureOptions::LINEAR));
+            self.texture =
+                Some(ctx.load_texture("waterfall", image(&self.pixels), TextureOptions::LINEAR));
             self.dirty = false;
         }
         let texture = self.texture.as_mut().expect("just created");
@@ -344,7 +361,11 @@ impl App {
                 }
                 EngineEvent::Stats(stats) => self.stats = stats,
                 EngineEvent::Notice(text) => self.add_log(text),
-                EngineEvent::DeviceReady { tuner, gains, sample_rate } => {
+                EngineEvent::DeviceReady {
+                    tuner,
+                    gains,
+                    sample_rate,
+                } => {
                     self.tuner = Some(tuner.to_string());
                     self.gains = gains;
                     self.add_log(format!("{tuner} tuner at {:.3} MS/s", sample_rate / 1e6));
@@ -387,13 +408,20 @@ impl App {
         ui.horizontal(|ui| {
             let problem = self.settings.problem();
             if self.engine.is_some() {
-                if ui.add(egui::Button::new(RichText::new("Stop").strong()).min_size(egui::vec2(84.0, 30.0))).clicked() {
+                if ui
+                    .add(
+                        egui::Button::new(RichText::new("Stop").strong())
+                            .min_size(egui::vec2(84.0, 30.0)),
+                    )
+                    .clicked()
+                {
                     self.stop();
                 }
             } else {
-                let start = egui::Button::new(RichText::new("Start").strong().color(Color32::BLACK))
-                    .fill(OK)
-                    .min_size(egui::vec2(84.0, 30.0));
+                let start =
+                    egui::Button::new(RichText::new("Start").strong().color(Color32::BLACK))
+                        .fill(OK)
+                        .min_size(egui::vec2(84.0, 30.0));
                 let response = ui.add_enabled(problem.is_none(), start);
                 let response = match &problem {
                     Some(p) => response.on_disabled_hover_text(p.as_str()),
@@ -415,17 +443,54 @@ impl App {
             };
             metric(ui, "FRAMES", self.good_frames.to_string(), OK);
             let bad = self.bad_frames;
-            metric(ui, "CRC FAILED", bad.to_string(), if bad > 0 { BAD } else { Color32::LIGHT_GRAY });
-            metric(ui, "PREAMBLES", s.decoder.preambles.to_string(), Color32::LIGHT_GRAY);
-            metric(ui, "HEADER LOST", s.decoder.header_errors.to_string(), Color32::LIGHT_GRAY);
+            metric(
+                ui,
+                "CRC FAILED",
+                bad.to_string(),
+                if bad > 0 { BAD } else { Color32::LIGHT_GRAY },
+            );
+            metric(
+                ui,
+                "PREAMBLES",
+                s.decoder.preambles.to_string(),
+                Color32::LIGHT_GRAY,
+            );
+            metric(
+                ui,
+                "HEADER LOST",
+                s.decoder.header_errors.to_string(),
+                Color32::LIGHT_GRAY,
+            );
             let running = self.engine.is_some();
-            let level = if running { format!("{:.1} dBFS", s.channel_dbfs) } else { "-".into() };
+            let level = if running {
+                format!("{:.1} dBFS", s.channel_dbfs)
+            } else {
+                "-".into()
+            };
             metric(ui, "CH POWER", level, Color32::LIGHT_GRAY);
-            let clip_colour = if s.clipped_percent > 0.1 { BAD } else { Color32::LIGHT_GRAY };
-            metric(ui, "CLIPPING", format!("{:.2} %", s.clipped_percent), clip_colour);
-            let drop_colour = if s.dropped_samples > 0 { BAD } else { Color32::LIGHT_GRAY };
+            let clip_colour = if s.clipped_percent > 0.1 {
+                BAD
+            } else {
+                Color32::LIGHT_GRAY
+            };
+            metric(
+                ui,
+                "CLIPPING",
+                format!("{:.2} %", s.clipped_percent),
+                clip_colour,
+            );
+            let drop_colour = if s.dropped_samples > 0 {
+                BAD
+            } else {
+                Color32::LIGHT_GRAY
+            };
             metric(ui, "DROPPED", s.dropped_samples.to_string(), drop_colour);
-            metric(ui, "CPU", format!("{:.0} %", s.load_percent), Color32::LIGHT_GRAY);
+            metric(
+                ui,
+                "CPU",
+                format!("{:.0} %", s.load_percent),
+                Color32::LIGHT_GRAY,
+            );
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 let server = self.socket.lock().unwrap();
@@ -439,7 +504,11 @@ impl App {
                             clients,
                             if clients == 1 { "" } else { "s" }
                         );
-                        ui.label(RichText::new(text).monospace().color(if clients > 0 { OK } else { MUTED }));
+                        ui.label(RichText::new(text).monospace().color(if clients > 0 {
+                            OK
+                        } else {
+                            MUTED
+                        }));
                     }
                     (None, Some(_)) => {
                         ui.label(RichText::new("socket failed").color(BAD));
@@ -525,7 +594,11 @@ impl App {
                     .show_ui(ui, |ui| {
                         for d in &self.devices {
                             let label = format!("{}: {} ({})", d.index, d.name, d.serial);
-                            ui.selectable_value(&mut self.settings.radio.device_index, d.index, label);
+                            ui.selectable_value(
+                                &mut self.settings.radio.device_index,
+                                d.index,
+                                label,
+                            );
                         }
                     });
                 if ui.small_button("Rescan").clicked() {
@@ -545,7 +618,10 @@ impl App {
         ui.add_enabled_ui(!running, |ui| {
             egui::ComboBox::from_id_salt("rate")
                 .width(170.0)
-                .selected_text(format!("{:.3} MS/s", self.settings.radio.sample_rate as f64 / 1e6))
+                .selected_text(format!(
+                    "{:.3} MS/s",
+                    self.settings.radio.sample_rate as f64 / 1e6
+                ))
                 .show_ui(ui, |ui| {
                     for rate in SAMPLE_RATES {
                         let label = format!("{:.3} MS/s", rate as f64 / 1e6);
@@ -556,13 +632,17 @@ impl App {
         ui.end_row();
 
         ui.label("Gain");
-        let mut gain_changed = ui.checkbox(&mut self.settings.radio.auto_gain, "Automatic").changed();
+        let mut gain_changed = ui
+            .checkbox(&mut self.settings.radio.auto_gain, "Automatic")
+            .changed();
         ui.end_row();
         if !self.settings.radio.auto_gain {
             ui.label("");
             if self.gains.is_empty() {
                 let mut db = self.settings.radio.gain_tenths as f32 / 10.0;
-                let slider = egui::Slider::new(&mut db, 0.0..=49.6).step_by(0.1).suffix(" dB");
+                let slider = egui::Slider::new(&mut db, 0.0..=49.6)
+                    .step_by(0.1)
+                    .suffix(" dB");
                 if ui.add(slider).changed() {
                     self.settings.radio.gain_tenths = (db * 10.0).round() as i32;
                     gain_changed = true;
@@ -577,8 +657,10 @@ impl App {
                     .map_or(0, |(i, _)| i);
                 let gains = self.gains.clone();
                 let last = gains.len() - 1;
-                let slider = egui::Slider::new(&mut index, 0..=last)
-                    .custom_formatter(move |v, _| format!("{:.1} dB", gains[v as usize] as f32 / 10.0));
+                let slider =
+                    egui::Slider::new(&mut index, 0..=last).custom_formatter(move |v, _| {
+                        format!("{:.1} dB", gains[v as usize] as f32 / 10.0)
+                    });
                 if ui.add(slider).changed() {
                     self.settings.radio.gain_tenths = self.gains[index];
                     gain_changed = true;
@@ -597,7 +679,11 @@ impl App {
             "Correction in ppm. The CFO column of decoded frames shows how far off a transmitter appears.",
         );
         if ui
-            .add(egui::DragValue::new(&mut self.settings.radio.ppm).range(-200..=200).suffix(" ppm"))
+            .add(
+                egui::DragValue::new(&mut self.settings.radio.ppm)
+                    .range(-200..=200)
+                    .suffix(" ppm"),
+            )
             .changed()
         {
             self.send(Command::Ppm(self.settings.radio.ppm));
@@ -612,7 +698,10 @@ impl App {
         ui.end_row();
 
         ui.label("");
-        if ui.checkbox(&mut self.settings.radio.bias_tee, "Bias tee").changed() {
+        if ui
+            .checkbox(&mut self.settings.radio.bias_tee, "Bias tee")
+            .changed()
+        {
             self.send(Command::BiasTee(self.settings.radio.bias_tee));
         }
         ui.end_row();
@@ -652,10 +741,16 @@ impl App {
         ui.end_row();
 
         ui.label("");
-        ui.add_enabled(!running, egui::Checkbox::new(&mut self.settings.file.realtime, "Play in real time"));
+        ui.add_enabled(
+            !running,
+            egui::Checkbox::new(&mut self.settings.file.realtime, "Play in real time"),
+        );
         ui.end_row();
         ui.label("");
-        ui.add_enabled(!running, egui::Checkbox::new(&mut self.settings.file.looped, "Loop"));
+        ui.add_enabled(
+            !running,
+            egui::Checkbox::new(&mut self.settings.file.looped, "Loop"),
+        );
         ui.end_row();
     }
 
@@ -669,13 +764,31 @@ impl App {
         ui.add_enabled(!running, rate);
         ui.end_row();
         ui.label("SNR");
-        ui.add_enabled(!running, egui::DragValue::new(&mut sim.snr_db).speed(0.1).range(-30.0..=40.0).suffix(" dB"));
+        ui.add_enabled(
+            !running,
+            egui::DragValue::new(&mut sim.snr_db)
+                .speed(0.1)
+                .range(-30.0..=40.0)
+                .suffix(" dB"),
+        );
         ui.end_row();
         ui.label("Crystal error");
-        ui.add_enabled(!running, egui::DragValue::new(&mut sim.ppm).speed(0.1).range(-60.0..=60.0).suffix(" ppm"));
+        ui.add_enabled(
+            !running,
+            egui::DragValue::new(&mut sim.ppm)
+                .speed(0.1)
+                .range(-60.0..=60.0)
+                .suffix(" ppm"),
+        );
         ui.end_row();
         ui.label("Interval");
-        ui.add_enabled(!running, egui::DragValue::new(&mut sim.interval_s).speed(0.05).range(0.1..=60.0).suffix(" s"));
+        ui.add_enabled(
+            !running,
+            egui::DragValue::new(&mut sim.interval_s)
+                .speed(0.05)
+                .range(0.1..=60.0)
+                .suffix(" s"),
+        );
         ui.end_row();
     }
 
@@ -790,7 +903,11 @@ impl App {
             RichText::new(format!(
                 "{symbol_ms:.2} ms per symbol, {:.0} bit/s raw{}",
                 bits,
-                if lora.ldro_active() { ", LDRO active" } else { "" }
+                if lora.ldro_active() {
+                    ", LDRO active"
+                } else {
+                    ""
+                }
             ))
             .small()
             .color(MUTED),
@@ -842,36 +959,63 @@ impl App {
         }
         if let Some(server) = self.socket.lock().unwrap().as_ref() {
             let (sent, dropped) = server.counters();
-            ui.label(RichText::new(format!("{sent} sent, {dropped} lost to slow clients")).small().color(MUTED));
+            ui.label(
+                RichText::new(format!("{sent} sent, {dropped} lost to slow clients"))
+                    .small()
+                    .color(MUTED),
+            );
         }
     }
 
     fn side_panel(&mut self, ui: &mut egui::Ui) {
-        egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            ui.add_space(6.0);
-            egui::CollapsingHeader::new(RichText::new("Radio").strong()).default_open(true).show(ui, |ui| {
-                self.radio_section(ui);
-            });
-            egui::CollapsingHeader::new(RichText::new("LoRa").strong()).default_open(true).show(ui, |ui| {
-                self.lora_section(ui);
-            });
-            egui::CollapsingHeader::new(RichText::new("Socket output").strong()).default_open(true).show(ui, |ui| {
-                self.socket_section(ui);
-            });
-            egui::CollapsingHeader::new(RichText::new("Waterfall").strong()).default_open(false).show(ui, |ui| {
-                ui.checkbox(&mut self.settings.waterfall_auto, "Follow the noise floor");
-                ui.add_enabled_ui(!self.settings.waterfall_auto, |ui| {
-                    ui.add(egui::Slider::new(&mut self.settings.waterfall_floor, -120.0..=-20.0).text("Floor dB"));
-                    ui.add(egui::Slider::new(&mut self.settings.waterfall_top, -80.0..=10.0).text("Top dB"));
-                });
-            });
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.add_space(6.0);
+                egui::CollapsingHeader::new(RichText::new("Radio").strong())
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.radio_section(ui);
+                    });
+                egui::CollapsingHeader::new(RichText::new("LoRa").strong())
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.lora_section(ui);
+                    });
+                egui::CollapsingHeader::new(RichText::new("Socket output").strong())
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.socket_section(ui);
+                    });
+                egui::CollapsingHeader::new(RichText::new("Waterfall").strong())
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        ui.checkbox(&mut self.settings.waterfall_auto, "Follow the noise floor");
+                        ui.add_enabled_ui(!self.settings.waterfall_auto, |ui| {
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut self.settings.waterfall_floor,
+                                    -120.0..=-20.0,
+                                )
+                                .text("Floor dB"),
+                            );
+                            ui.add(
+                                egui::Slider::new(&mut self.settings.waterfall_top, -80.0..=10.0)
+                                    .text("Top dB"),
+                            );
+                        });
+                    });
 
-            if self.settings.source == SourceKind::RtlSdr {
-                if let Some(tuner) = &self.tuner {
-                    ui.label(RichText::new(format!("Tuner: {tuner}")).small().color(MUTED));
+                if self.settings.source == SourceKind::RtlSdr {
+                    if let Some(tuner) = &self.tuner {
+                        ui.label(
+                            RichText::new(format!("Tuner: {tuner}"))
+                                .small()
+                                .color(MUTED),
+                        );
+                    }
                 }
-            }
-        });
+            });
     }
 
     /// The most important thing the user should know right now.
@@ -885,7 +1029,11 @@ impl App {
             self.settings.rf_mhz,
             lora.sf,
             bandwidth_label(lora.bw_hz),
-            if lora.any_sync_word { "any".to_string() } else { format!("0x{:02X}", lora.sync_word) },
+            if lora.any_sync_word {
+                "any".to_string()
+            } else {
+                format!("0x{:02X}", lora.sync_word)
+            },
         );
         if self.engine.is_some() {
             return (OK, format!("Receiving on {summary}"));
@@ -898,7 +1046,10 @@ impl App {
                 return (BAD, e.clone());
             }
             if self.devices.is_empty() {
-                return (WARN, "No RTL-SDR dongle found. Plug one in and press Rescan.".into());
+                return (
+                    WARN,
+                    "No RTL-SDR dongle found. Plug one in and press Rescan.".into(),
+                );
             }
         }
         match self.settings.advice() {
@@ -909,7 +1060,8 @@ impl App {
 
     fn waterfall_view(&mut self, ui: &mut egui::Ui) {
         let height = (ui.available_height() * 0.30).clamp(130.0, 260.0);
-        let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::hover());
+        let (rect, response) =
+            ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::hover());
         let texture_id = self.waterfall.texture(ui.ctx()).id();
         let painter = ui.painter_at(rect);
         let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
@@ -922,7 +1074,10 @@ impl App {
         // The LoRa channel.
         let bw = self.settings.lora.bw();
         let centre = self.settings.rf_mhz * 1e6;
-        let band = egui::Rect::from_x_y_ranges(x_of(centre - bw / 2.0)..=x_of(centre + bw / 2.0), rect.y_range());
+        let band = egui::Rect::from_x_y_ranges(
+            x_of(centre - bw / 2.0)..=x_of(centre + bw / 2.0),
+            rect.y_range(),
+        );
         painter.rect_filled(band, 0.0, Color32::from_rgba_unmultiplied(90, 190, 220, 16));
         let line = Stroke::new(1.0, ACCENT.gamma_multiply(0.7));
         painter.vline(band.left(), rect.y_range(), line);
@@ -935,7 +1090,11 @@ impl App {
             let hz = tuned - rate / 2.0 + rate * i as f64 / divisions as f64;
             let x = x_of(hz);
             let y = rect.bottom();
-            painter.vline(x, (y - 6.0)..=y, Stroke::new(1.0, Color32::from_white_alpha(120)));
+            painter.vline(
+                x,
+                (y - 6.0)..=y,
+                Stroke::new(1.0, Color32::from_white_alpha(120)),
+            );
             if i % 2 == 0 {
                 let anchor = match i {
                     0 => egui::Align2::LEFT_BOTTOM,
@@ -950,8 +1109,40 @@ impl App {
                 };
                 let shadow = egui::pos2(x + inset + 1.0, y - 7.0);
                 painter.text(shadow, anchor, &label, font.clone(), Color32::BLACK);
-                painter.text(egui::pos2(x + inset, y - 8.0), anchor, &label, font.clone(), Color32::WHITE);
+                painter.text(
+                    egui::pos2(x + inset, y - 8.0),
+                    anchor,
+                    &label,
+                    font.clone(),
+                    Color32::WHITE,
+                );
             }
+        }
+
+        // Frequency under the pointer.
+        if let Some(pos) = response.hover_pos() {
+            let fraction = ((pos.x - rect.left()) / rect.width()).clamp(0.0, 1.0) as f64;
+            let hz = tuned - rate / 2.0 + fraction * rate;
+            painter.vline(
+                pos.x,
+                rect.y_range(),
+                Stroke::new(1.0, Color32::from_white_alpha(170)),
+            );
+
+            let offset_khz = (hz - centre) / 1e3;
+            let text = format!("{:.4} MHz   {:+.1} kHz", hz / 1e6, offset_khz);
+            let galley =
+                painter.layout_no_wrap(text, egui::FontId::monospace(12.0), Color32::WHITE);
+            let padding = egui::vec2(6.0, 3.0);
+            let mut min = egui::pos2(pos.x + 10.0, rect.top() + 6.0);
+            // Flip to the other side of the cursor rather than spill off the edge.
+            if min.x + galley.size().x + 2.0 * padding.x > rect.right() - 4.0 {
+                min.x = pos.x - 10.0 - galley.size().x - 2.0 * padding.x;
+            }
+            min.x = min.x.max(rect.left() + 4.0);
+            let box_rect = egui::Rect::from_min_size(min, galley.size() + padding * 2.0);
+            painter.rect_filled(box_rect, 4.0, Color32::from_black_alpha(205));
+            painter.galley(min + padding, galley, Color32::WHITE);
         }
     }
 
@@ -996,7 +1187,9 @@ impl App {
         }
         table
             .header(22.0, |mut header| {
-                for title in ["#", "Time", "Bytes", "CRC", "Mode", "SNR dB", "RSSI dB", "CFO kHz", "Payload"] {
+                for title in [
+                    "#", "Time", "Bytes", "CRC", "Mode", "SNR dB", "RSSI dB", "CFO kHz", "Payload",
+                ] {
                     header.col(|ui| {
                         ui.label(RichText::new(title).small().color(MUTED));
                     });
@@ -1038,7 +1231,11 @@ impl App {
                         ui.label(mono(format!("{:+.2}", f.cfo_hz / 1e3)));
                     });
                     row.col(|ui| {
-                        let text = if as_hex { hex(&f.payload) } else { printable(&f.payload) };
+                        let text = if as_hex {
+                            hex(&f.payload)
+                        } else {
+                            printable(&f.payload)
+                        };
                         ui.label(mono(text));
                     });
                     if row.response().clicked() {
@@ -1053,15 +1250,23 @@ impl App {
     }
 
     fn detail_panel(&mut self, ui: &mut egui::Ui) {
-        egui::Panel::right("events").default_size(290.0).size_range(160.0..=600.0).show(ui, |ui| {
-            ui.label(RichText::new("Events").strong());
-            egui::ScrollArea::vertical().id_salt("log").auto_shrink([false, false]).show(ui, |ui| {
-                for line in &self.log {
-                    ui.label(RichText::new(line).monospace().small().color(MUTED));
-                }
+        egui::Panel::right("events")
+            .default_size(290.0)
+            .size_range(160.0..=600.0)
+            .show(ui, |ui| {
+                ui.label(RichText::new("Events").strong());
+                egui::ScrollArea::vertical()
+                    .id_salt("log")
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        for line in &self.log {
+                            ui.label(RichText::new(line).monospace().small().color(MUTED));
+                        }
+                    });
             });
-        });
-        let record = self.selected.and_then(|seq| self.frames.iter().rev().find(|f| f.seq == seq));
+        let record = self
+            .selected
+            .and_then(|seq| self.frames.iter().rev().find(|f| f.seq == seq));
         let Some(record) = record else {
             ui.label(RichText::new("Select a frame to see its bytes.").color(MUTED));
             return;
@@ -1087,16 +1292,25 @@ impl App {
                 }
             });
         });
-        egui::ScrollArea::both().id_salt("hex").auto_shrink([false, false]).show(ui, |ui| {
-            ui.add(egui::Label::new(RichText::new(hexdump(&f.payload)).monospace()).extend());
-        });
+        egui::ScrollArea::both()
+            .id_salt("hex")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.add(egui::Label::new(RichText::new(hexdump(&f.payload)).monospace()).extend());
+            });
     }
 }
 
 fn printable(bytes: &[u8]) -> String {
     bytes
         .iter()
-        .map(|&b| if (0x20..0x7f).contains(&b) { b as char } else { '.' })
+        .map(|&b| {
+            if (0x20..0x7f).contains(&b) {
+                b as char
+            } else {
+                '.'
+            }
+        })
         .collect()
 }
 
