@@ -1369,6 +1369,7 @@ impl eframe::App for App {
             .size_range(320.0..=440.0)
             .show(ui, |ui| self.side_panel(ui));
         egui::Panel::bottom("detail")
+            .resizable(true)
             .default_size(180.0)
             .size_range(110.0..=400.0)
             .show(ui, |ui| {
